@@ -14,14 +14,10 @@ function convertToWslPath(windowsPath: string): string {
     return windowsPath.replace(/^([a-zA-Z]):/, (_, drive) => `/mnt/${drive.toLowerCase()}`).replace(/\\/g, '/');
 }
 
-function executeGitBlame(filePath: string, startLine: number, endLine: number): Promise<string> {
+function executeCommand(command: string, cwd: string): Promise<string> {
     return new Promise((resolve, reject) => {
-        const wslFilePath = convertToWslPath(filePath);
-        const repoPath = path.dirname(filePath); // Directory where the .git folder is
-        const command = `git blame -L ${startLine + 1},${endLine + 1} -- "${wslFilePath}"`;
         console.log(`Executing command: ${command}`);
-         
-        cp.exec(command, { cwd: repoPath }, (error, stdout, stderr) => {
+        cp.exec(command, { cwd }, (error, stdout, stderr) => {
             if (error) {
                 reject(stderr || error.message);
             } else {
@@ -29,6 +25,14 @@ function executeGitBlame(filePath: string, startLine: number, endLine: number): 
             }
         });
     });
+}
+
+function executeGitBlame(filePath: string, startLine: number, endLine: number): Promise<string> {
+    const wslFilePath = convertToWslPath(filePath);
+    const repoPath = path.dirname(filePath); // Directory where the .git folder is
+    const command = `git blame -L ${startLine + 1},${endLine + 1} -- "${wslFilePath}"`;
+
+    return executeCommand(command, repoPath);
 }
 
 function parseGitBlame(blameOutput: string): BlameInfo[] {
@@ -40,21 +44,34 @@ function parseGitBlame(blameOutput: string): BlameInfo[] {
     for (const line of blameLines) {
         const match = blameRegex.exec(line);
         if (match) {
-            const [, commit, author, date, lineNumber, message] = match;
+            const [, commit, author, date, lineNumber, line] = match;
 
-            const blameInfo: BlameInfo = {
+            var blameInfo: BlameInfo = {
                 line: parseInt(lineNumber, 10),
                 commit: commit.replace('^', ''),
                 author: author.trim(),
                 date,
-                message: message.trim(),
+                message: "",
             };
-
             blameInfoArray.push(blameInfo);
         }
     }
 
     return blameInfoArray;
+}
+
+async function addCommitMessagesToBlameInfo(filePath: string, blameInfoArray: BlameInfo[]): Promise<void> {
+    const commitMessages: { [commitId: string]: string } = {};
+    const repoPath = path.dirname(filePath); // Directory where the .git folder is
+
+    for (const blameInfo of blameInfoArray) {
+        if (!commitMessages[blameInfo.commit]) {
+            const command = `git show -s --format=%B ${blameInfo.commit}`;
+            commitMessages[blameInfo.commit] = await executeCommand(command, repoPath);
+        }
+
+        blameInfo.message = commitMessages[blameInfo.commit].trim();
+    }
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -85,7 +102,8 @@ export function activate(context: vscode.ExtensionContext) {
 
             // Collect blame information for each selected line
             const blameOutput = await executeGitBlame(filePath, startLine, endLine);
-            const blameInfo = parseGitBlame(blameOutput);
+            var blameInfo = parseGitBlame(blameOutput);
+            addCommitMessagesToBlameInfo(filePath, blameInfo);
             console.log(blameInfo);
             
             vscode.window.showInformationMessage(`Showing blame for lines ${startLine + 1} to ${endLine + 1}.`);
