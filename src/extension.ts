@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
-import { BlameInfo, executeGitBlame, parseGitBlame, addCommitMessagesToBlameInfo } from './utils/utils';
+import { BlameInfo, getGitBlameInfo } from './utils/utils';
+
+let panel: vscode.WebviewPanel | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
     const disposable = vscode.commands.registerCommand('whosmyguy.findGuy', async () => {
@@ -24,39 +26,10 @@ export function activate(context: vscode.ExtensionContext) {
                 throw new Error('File is not part of a workspace');
             }
 
-            const blameOutput = await executeGitBlame(filePath, startLine, endLine);
-            const blameInfo = parseGitBlame(blameOutput);
-            await addCommitMessagesToBlameInfo(filePath, blameInfo);
+            const blameInfo = await getGitBlameInfo(filePath, startLine, endLine);
 
             if (blameInfo.length > 0) {
-                const hoverContent = createHoverContent(blameInfo, startLine);
-
-                const decorationType = vscode.window.createTextEditorDecorationType({
-                    backgroundColor: new vscode.ThemeColor('editor.hoverHighlightBackground'),
-                    isWholeLine: true
-                });
-
-                const range = new vscode.Range(selection.start, selection.end);
-                editor.setDecorations(decorationType, [range]);
-
-                // Register a hover provider for all documents
-                const hoverProviderDisposable = vscode.languages.registerHoverProvider(
-                    "*",
-                    {
-                        provideHover(document, position, token) {
-                            return new vscode.Hover(hoverContent, new vscode.Range(position, position));
-                        }
-                    }
-                );
-
-                context.subscriptions.push(hoverProviderDisposable);
-
-                // Clear decoration and hover provider after a delay
-                setTimeout(() => {
-                    hoverProviderDisposable.dispose();
-                    decorationType.dispose();
-                    editor.setDecorations(decorationType, []);
-                }, 10000);
+                showBlamePanel(context.extensionUri, blameInfo, startLine);
             }
         } catch (error) {
             vscode.window.showErrorMessage(`Error getting git blame: ${error instanceof Error ? error.message : String(error)}`);
@@ -66,52 +39,83 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(disposable);
 }
 
-function createHoverContent(blameInfo: BlameInfo[], startLine: number): vscode.MarkdownString {
-    const hoverContent = new vscode.MarkdownString();
+function showBlamePanel(extensionUri: vscode.Uri, blameInfo: BlameInfo[], startLine: number) {
+    if (panel) {
+        panel.reveal(vscode.ViewColumn.Beside);
+    } else {
+        panel = vscode.window.createWebviewPanel(
+            'blameInfo',
+            'Git Blame Info',
+            vscode.ViewColumn.Beside,
+            {
+                enableScripts: true,
+                localResourceRoots: [extensionUri]
+            }
+        );
 
-    // Create HTML table with proper Markdown separation
-    hoverContent.appendMarkdown(`
-<table style="border-collapse: collapse; width: 100%;">
-<thead>
-<tr style="background-color: #f2f2f2;">
-<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Line #</th>
-<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Author</th>
-<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Date</th>
-<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Message</th>
-</tr>
-</thead>
-<tbody>
-${blameInfo.map((info, index) => `
-<tr>
-<td style="border: 1px solid #ddd; padding: 8px;">${startLine + index + 1}</td>
-<td style="border: 1px solid #ddd; padding: 8px;">${info.author}</td>
-<td style="border: 1px solid #ddd; padding: 8px;">${formatDate(info.date)}</td>
-<td style="border: 1px solid #ddd; padding: 8px;">${info.message}</td>
-</tr>
-`).join('')}
-</tbody>
-</table>
-`);
+        panel.onDidDispose(() => {
+            panel = undefined;
+        }, null, []);
+    }
 
-    hoverContent.isTrusted = true;
-    hoverContent.supportHtml = true;
-    
-    return hoverContent;
+    panel.webview.html = getWebviewContent(blameInfo);
 }
 
-function formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+function getWebviewContent(blameInfo: BlameInfo[]): string {
+    const tableRows = blameInfo.map((info) => `
+        <tr>
+            <td>${info.commit.substring(0, 7)}</td>
+            <td>${info.author}</td>
+            <td>${info.date}</td>
+            <td>${info.message}</td>
+            <td>${info.lines.join(', ')}</td>
+        </tr>
+    `).join('');
 
-    if (diffMinutes < 60) {
-        return `${diffMinutes} minutes ago`;
-    } else if (diffMinutes < 1440) {
-        const hours = Math.floor(diffMinutes / 60);
-        return `${hours} hours ago`;
-    } else {
-        return `${date.toLocaleDateString()}`;
-    }
+    return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Git Blame Info</title>
+            <style>
+                body {
+                    font-family: var(--vscode-font-family);
+                    font-size: var(--vscode-font-size);
+                    color: var(--vscode-foreground);
+                    background-color: var(--vscode-editor-background);
+                }
+                table {
+                    border-collapse: collapse;
+                    width: 100%;
+                }
+                th, td {
+                    border: 1px solid var(--vscode-panel-border);
+                    padding: 8px;
+                    text-align: left;
+                }
+                th {
+                    background-color: var(--vscode-editor-foreground);
+                    color: var(--vscode-editor-background);
+                    font-weight: bold;
+                }
+            </style>
+        </head>
+        <body>
+            <table>
+                <tr>
+                    <th>Commit ID</th>
+                    <th>Author</th>
+                    <th>Date</th>
+                    <th>Commit Message</th>
+                    <th>Line(s)</th>
+                </tr>
+                ${tableRows}
+            </table>
+        </body>
+        </html>
+    `;
 }
 
 export function deactivate() {}
