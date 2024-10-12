@@ -4,5 +4,4 @@ export interface BlameInfo {
     author: string;
     date: string;
     message: string;
-    lineContent: string;
 }

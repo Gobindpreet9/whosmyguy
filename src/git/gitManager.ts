@@ -6,8 +6,7 @@ import { BlameInfo } from './BlameInfo';
 
 export class GitManager {
     async getGitBlameInfo(filePath: string, startLine: number, endLine: number): Promise<BlameInfo[]> {
-        const blameOutput = await this.executeGitBlame(filePath, startLine, endLine);
-        const blameInfo = this.parseGitBlame(blameOutput);
+        const blameInfo = await this.getGitLogsForLineRange(filePath, startLine, endLine);
         await this.addCommitMessagesToBlameInfo(filePath, blameInfo);
         return blameInfo;
     }
@@ -52,56 +51,130 @@ export class GitManager {
         }
     }
 
-    private async executeGitBlame(filePath: string, startLine: number, endLine: number): Promise<string> {
-        const wslFilePath = this.convertToWslPath(filePath);
-        const repoPath = path.dirname(filePath);
-        const command = `git blame -L ${startLine + 1},${endLine + 1} -- "${wslFilePath}"`;
-        return await this.executeCommand(command, repoPath);
-    }
+    // getGitLogsForLineRange replaced getGitBlame and supporting methods. May require this code in future.
+    // private async executeGitBlame(filePath: string, startLine: number, endLine: number): Promise<string> {
+    //     const wslFilePath = this.convertToWslPath(filePath);
+    //     const repoPath = path.dirname(filePath);
+    //     const command = `git blame -L ${startLine + 1},${endLine + 1} -- "${wslFilePath}"`;
+    //     return await this.executeCommand(command, repoPath);
+    // }
 
-    private parseGitBlame(blameOutput: string): BlameInfo[] {
-        const blameLines = blameOutput.split('\n').filter(line => line.trim() !== '');
-        const blameInfoArray: BlameInfo[] = [];
+    // private parseGitBlame(blameOutput: string): BlameInfo[] {
+    //     const blameLines = blameOutput.split('\n').filter(line => line.trim() !== '');
+    //     const blameInfoArray: BlameInfo[] = [];
     
-        const blameRegex = /^(\^?[a-f0-9]+)\s+\(([^)]+)\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4})\s+(\d+)\)\s+(.*)$/;
+    //     const blameRegex = /^(\^?[a-f0-9]+)\s+\(([^)]+)\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4})\s+(\d+)\)\s+(.*)$/;
     
-        for (const line of blameLines) {
-            const match = blameRegex.exec(line);
-            if (match) {
-                const [, commit, author, date, lineNumber, lineContent] = match;
+    //     for (const line of blameLines) {
+    //         const match = blameRegex.exec(line);
+    //         if (match) {
+    //             const [, commit, author, date, lineNumber, lineContent] = match;
     
-                const blameInfo: BlameInfo = {
-                    lines: [lineNumber],
-                    commit: commit.replace('^', ''),
-                    author: author.trim(),
-                    date: this.formatDate(date),
-                    lineContent: lineContent.trim(),
-                    message: "",
-                };
-                blameInfoArray.push(blameInfo);
-            }
-        }
+    //             const blameInfo: BlameInfo = {
+    //                 lines: [lineNumber],
+    //                 commit: commit.replace('^', ''),
+    //                 author: author.trim(),
+    //                 date: this.formatDate(date),
+    //                 message: "",
+    //             };
+    //             blameInfoArray.push(blameInfo);
+    //         }
+    //     }
     
-        return this.mergeBlameInfo(blameInfoArray);
-    }
+    //     return this.mergeBlameInfo(blameInfoArray);
+    // }
 
-    private mergeBlameInfo(blameInfoArray: BlameInfo[]): BlameInfo[] {
+    // private mergeBlameInfo(blameInfoArray: BlameInfo[]): BlameInfo[] {
+    //     const commitToBlameInfo = new Map<string, BlameInfo>();
+
+    //     for (const blameInfo of blameInfoArray) {
+    //         if (commitToBlameInfo.has(blameInfo.commit)) {
+    //             const existingInfo = commitToBlameInfo.get(blameInfo.commit)!;
+    //             existingInfo.lines.push(...blameInfo.lines);
+    //         } else {
+    //             commitToBlameInfo.set(blameInfo.commit, { ...blameInfo });
+    //         }
+    //     }
+
+    //     return Array.from(commitToBlameInfo.values()).map(info => ({
+    //         ...info,
+    //         lines: [this.formatLineNumbers(info.lines)]
+    //     }));
+    // }
+
+    private async getGitLogsForLineRange(filePath: string, startLine: number, endLine: number): Promise<BlameInfo[]> {
         const commitToBlameInfo = new Map<string, BlameInfo>();
 
-        for (const blameInfo of blameInfoArray) {
-            if (commitToBlameInfo.has(blameInfo.commit)) {
-                const existingInfo = commitToBlameInfo.get(blameInfo.commit)!;
-                existingInfo.lines.push(...blameInfo.lines);
-                existingInfo.lineContent += `\n${blameInfo.lineContent}`;
-            } else {
-                commitToBlameInfo.set(blameInfo.commit, { ...blameInfo });
-            }
+        // add 1 to line number because git line count starts at 1
+        for (let lineNumber = startLine + 1; lineNumber <= endLine + 1; lineNumber++) {
+            const gitLogOutput = await this.executeGitLog(filePath, lineNumber);
+            const blameInfoForLine = this.parseGitLogOutput(gitLogOutput, lineNumber);
+            blameInfoForLine.forEach(blameInfo => {
+                if (commitToBlameInfo.has(blameInfo.commit)) {
+                    commitToBlameInfo.get(blameInfo.commit)!.lines.push(lineNumber.toString());
+                } else {
+                    commitToBlameInfo.set(blameInfo.commit, blameInfo);
+                }
+            });
         }
 
         return Array.from(commitToBlameInfo.values()).map(info => ({
             ...info,
             lines: [this.formatLineNumbers(info.lines)]
-        }));
+        }));    }
+
+    private parseGitLogOutput(output: string, lineNumber: number): BlameInfo[] {
+        const commits = output.split('Commit: ').filter(commit => commit.trim() !== '');
+        return commits.map(commit => this.parseCommitInfo(commit, lineNumber)).filter((info): info is BlameInfo => info !== null);
+    }
+    
+    private async executeGitLog(filePath: string, lineNumber: number): Promise<string> {
+        const wslFilePath = this.convertToWslPath(filePath);
+        const repoPath = path.dirname(filePath);
+        const command = `git --no-pager log -L ${lineNumber},${lineNumber}:"${wslFilePath}" --format="Commit: %H%nAuthor: %an <%ae>%nDate: %ad%nMessage: %s%n"`;
+        return await this.executeCommand(command, repoPath);
+    }
+
+    private parseCommitInfo(commitInfo: string, lineNumber: number): BlameInfo | null {
+        const lines = commitInfo.trim().split('\n');
+        if (lines.length < 4) {
+            return null;
+        }
+
+        const commit = lines[0].trim();
+        const author = lines[1].replace('Author: ', '').trim();
+        const date = lines[2].replace('Date: ', '').trim();
+        const message = lines[3].replace('Message: ', '').trim();
+
+        return {
+            lines: [`${lineNumber}`],
+            commit,
+            author,
+            date: this.formatDate(date),
+            message,
+        };
+    }
+
+    parseGitLog(gitLogOutput: string, lineNumber: number) {
+        const lines = gitLogOutput.trim().split('\n');
+        if (lines.length < 5) {
+            return null;
+        }
+
+        const commit = lines[0].replace('Commit: ', '');
+        const author = lines[1].replace('Author: ', '');
+        const date = lines[2].replace('Date: ', '');
+        const message = lines[3].replace('Message: ', '');
+        const lineContent = lines[lines.length - 1];
+
+        return {
+            lines: [`${lineNumber}`],
+            commit,
+            author,
+            date,
+            message,
+            lineContent
+        };
     }
 
     private async addCommitMessagesToBlameInfo(filePath: string, blameInfoArray: BlameInfo[]): Promise<void> {
