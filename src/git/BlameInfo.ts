@@ -2,6 +2,6 @@ export interface BlameInfo {
     lines: string[];   
     commit: string; 
     author: string;
-    date: string;
+    date: Date;
     message: string;
 }

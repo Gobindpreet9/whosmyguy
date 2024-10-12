@@ -46,7 +46,7 @@ export class BlamePanel {
             <tr>
                 <td><a href="#" onclick="openCommit('${info.commit}')">${info.commit.substring(0, 7)}</a></td>
                 <td>${info.author}</td>
-                <td>${info.date}</td>
+                <td>${this.formatDate(info.date)}</td>
                 <td>${info.message}</td>
                 <td>${info.lines.join(', ')}</td>
             </tr>
@@ -112,5 +112,19 @@ export class BlamePanel {
         </body>
         </html>
         `;
+    }
+
+    private formatDate(date: Date): string {
+        const now = new Date();
+        const diffMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+
+        if (diffMinutes < 60) {
+            return `${diffMinutes} minute(s) ago`;
+        } else if (diffMinutes < 1440) {
+            const hours = Math.floor(diffMinutes / 60);
+            return `${hours} hour(s) ago`;
+        } else {
+            return `${date.toLocaleDateString()}`;
+        }
     }
 }

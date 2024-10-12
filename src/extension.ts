@@ -30,7 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
                 throw new Error('File is not part of a workspace');
             }
 
-            const blameInfo = await gitManager.getGitBlameInfo(filePath, startLine, endLine);
+            const blameInfo = await gitManager.getGitBlameInfoForLineRange(filePath, startLine, endLine);
             
             if (blameInfo.length > 0) {
                 blamePanel.show(gitManager, blameInfo, filePath);
