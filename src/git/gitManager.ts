@@ -76,7 +76,7 @@ export class GitManager {
     private async executeGitLog(filePath: string, lineNumber: number): Promise<string> {
         const wslFilePath = this.convertToWslPath(filePath);
         const repoPath = path.dirname(filePath);
-        const command = `git --no-pager log -L ${lineNumber},${lineNumber}:"${wslFilePath}" --format="Commit: %H%nAuthor: %an <%ae>%nDate: %ad%nMessage: %s%n"`;
+        const command = `git --no-pager log -L ${lineNumber},${lineNumber}:"${wslFilePath}" --format="Commit: %H%nAuthor: %an%nDate: %ad%nMessage: %s%n"`;
         return await this.executeCommand(command, repoPath);
     }
 
