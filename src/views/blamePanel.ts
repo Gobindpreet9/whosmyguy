@@ -38,6 +38,9 @@ export class BlamePanel {
                                 this.panel.webview.html = this.getWebviewContent(filteredBlameInfo, message.startDate, message.endDate);
                             }
                             return;
+                        case 'openEmail':
+                            vscode.env.openExternal(vscode.Uri.parse(`mailto:${message.email}`));
+                            return;
                     }
                 },
                 undefined,
@@ -55,7 +58,9 @@ export class BlamePanel {
         const tableRows = blameInfo.map((info) => `
             <tr>
                 <td><a href="#" onclick="openCommit('${info.commit}')">${info.commit.substring(0, 7)}</a></td>
-                <td>${info.author}</td>
+                <td>
+                    <span class="author-name" title="${info.authorEmail}" onclick="openEmail('${info.authorEmail}')">${info.author}</span>
+                </td>
                 <td>${this.formatDate(info.date)}</td>
                 <td>${info.message}</td>
                 <td>${info.lines.join(', ')}</td>
@@ -158,6 +163,26 @@ export class BlamePanel {
                     border-top: 1px solid var(--vscode-panel-border);
                     margin: 15px 0;
                 }
+                
+                .author-name {
+                    cursor: pointer;
+                    position: relative;
+                }
+
+                .author-name:hover::after {
+                    content: attr(title);
+                    position: absolute;
+                    bottom: 100%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background-color: var(--vscode-editor-background);
+                    color: var(--vscode-foreground);
+                    padding: 5px;
+                    border-radius: 3px;
+                    border: 1px solid var(--vscode-panel-border);
+                    white-space: nowrap;
+                    z-index: 1;
+                }
             </style>
             <script>
                 const vscode = acquireVsCodeApi();
@@ -188,6 +213,13 @@ export class BlamePanel {
                         endDate: ''
                     });
                 }
+
+                function openEmail(email) {
+                    vscode.postMessage({
+                        command: 'openEmail',
+                        email: email
+                    });
+                }    
             </script>
         </head>
         <body>

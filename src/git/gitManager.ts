@@ -76,25 +76,27 @@ export class GitManager {
     private async executeGitLog(filePath: string, lineNumber: number): Promise<string> {
         const wslFilePath = this.convertToWslPath(filePath);
         const repoPath = path.dirname(filePath);
-        const command = `git --no-pager log -L ${lineNumber},${lineNumber}:"${wslFilePath}" --format="Commit: %H%nAuthor: %an%nDate: %ad%nMessage: %s%n"`;
+        const command = `git --no-pager log -L ${lineNumber},${lineNumber}:"${wslFilePath}" --format="Commit: %H%nAuthor: %an%nAuthor Email: %ae%nDate: %ad%nMessage: %s%n"`;
         return await this.executeCommand(command, repoPath);
     }
 
     private parseCommitInfo(commitInfo: string, lineNumber: number): BlameInfo | null {
         const lines = commitInfo.trim().split('\n');
-        if (lines.length < 4) {
+        if (lines.length < 5) {  
             return null;
         }
-
-        const commit = lines[0].trim();
+    
+        const commit = lines[0].replace('Commit: ', '').trim();
         const author = lines[1].replace('Author: ', '').trim();
-        const dateString = lines[2].replace('Date: ', '').trim();
-        const message = lines[3].replace('Message: ', '').trim();
-
+        const authorEmail = lines[2].replace('Author Email: ', '').trim();
+        const dateString = lines[3].replace('Date: ', '').trim();
+        const message = lines[4].replace('Message: ', '').trim();
+    
         return {
             lines: [`${lineNumber}`],
             commit,
             author,
+            authorEmail,
             date: new Date(dateString),
             message,
         };
