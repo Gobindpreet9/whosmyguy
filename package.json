@@ -1,8 +1,19 @@
 {
   "name": "whosmyguy",
-  "displayName": "whosmyguy",
-  "description": "Uses git blame to help you find who your guy is.",
-  "version": "0.0.1",
+  "displayName": "Who's My Guy?",
+  "description": "See comprehensive details about the git history of the selected lines in your editor.",
+  "version": "1.0.1",
+  "publisher": "GobindpreetMakkar",
+  "icon": "images/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Gobindpreet9/whosmyguy.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Gobindpreet9/whosmyguy/issues"
+  },
+  "homepage": "https://github.com/Gobindpreet9/whosmyguy#readme",
   "engines": {
     "vscode": "^1.92.0"
   },
@@ -12,7 +23,6 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
-    "enableProposedApi": true,
     "commands": [
       {
         "command": "whosmyguy.findGuy",

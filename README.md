@@ -1,5 +1,7 @@
 # Who's My Guy
 
+Available at [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=GobindpreetMakkar.whosmyguy)
+
 ## Overview
 
 "Who's My Guy" is a powerful Visual Studio Code extension that enhances your Git history experience. It provides a more comprehensive view of code authorship by collecting and combining Git history for each line, going beyond what a standard Git blame would offer.
