@@ -74,9 +74,9 @@ export class GitManager {
     }
 
     private async executeGitLog(filePath: string, lineNumber: number): Promise<string> {
-        const wslFilePath = this.convertToWslPath(filePath);
+        const osFilePath = this.convertToOsPath(filePath);
         const repoPath = path.dirname(filePath);
-        const command = `git --no-pager log -L ${lineNumber},${lineNumber}:"${wslFilePath}" --format="Commit: %H%nAuthor: %an%nAuthor Email: %ae%nDate: %ad%nMessage: %s%n"`;
+        const command = `git --no-pager log -L ${lineNumber},${lineNumber}:"${osFilePath}" --format="Commit: %H%nAuthor: %an%nAuthor Email: %ae%nDate: %ad%nMessage: %s%n"`;
         return await this.executeCommand(command, repoPath);
     }
 
@@ -115,7 +115,11 @@ export class GitManager {
         });
     }
 
-    private convertToWslPath(windowsPath: string): string {
+    private convertToOsPath(windowsPath: string): string {
+        if (process.platform === 'win32') {
+            return windowsPath.replace(/\\/g, '/');
+        }
+        // wsl path
         return windowsPath.replace(/^([a-zA-Z]):/, (_, drive) => `/mnt/${drive.toLowerCase()}`).replace(/\\/g, '/');
     }
 
