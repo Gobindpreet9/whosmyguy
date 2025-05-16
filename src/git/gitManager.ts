@@ -44,29 +44,8 @@ export class GitManager {
             return;
         }
 
-        const historyItem = this.createHistoryItemFromCommit(commit);
-        const doesFileExistInParents = await this.doesFileExistInParents(repo, commit, filePath);
-
-        if (doesFileExistInParents) {
-            await vscode.commands.executeCommand('git.viewCommit', repo, historyItem);
-        } 
-        else {
-            vscode.window.showErrorMessage(`Unable to view change history for '${commitId}'. No parent commit exists.`);
-        }
-    }
-
-    private async doesFileExistInParents(repo: Repository, commit: Commit, filePath: string): Promise<boolean> {
-        if (commit.parents.length === 0) {
-            return false;
-        }
-
-        try {
-            const result = await repo.show(commit.parents[0], filePath);
-            return result !== '';
-        } catch (error) {
-            return false;
-        }
-    }
+        await vscode.commands.executeCommand('git.viewCommit', repo, commit.hash);
+    } 
 
     private parseGitLogOutput(output: string, lineNumber: number): BlameInfo[] {
         const commits = output.split('Commit: ').filter(commit => commit.trim() !== '');
@@ -160,70 +139,4 @@ export class GitManager {
             references: []
         };
     }
-
-    // ****** getGitLogsForLineRange replaced getGitBlame and supporting methods. May require this code in future. ******
-    //
-    //
-    // private async executeGitBlame(filePath: string, startLine: number, endLine: number): Promise<string> {
-    //     const wslFilePath = this.convertToWslPath(filePath);
-    //     const repoPath = path.dirname(filePath);
-    //     const command = `git blame -L ${startLine + 1},${endLine + 1} -- "${wslFilePath}"`;
-    //     return await this.executeCommand(command, repoPath);
-    // }
-
-    // private parseGitBlame(blameOutput: string): BlameInfo[] {
-    //     const blameLines = blameOutput.split('\n').filter(line => line.trim() !== '');
-    //     const blameInfoArray: BlameInfo[] = [];
-    
-    //     const blameRegex = /^(\^?[a-f0-9]+)\s+\(([^)]+)\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4})\s+(\d+)\)\s+(.*)$/;
-    
-    //     for (const line of blameLines) {
-    //         const match = blameRegex.exec(line);
-    //         if (match) {
-    //             const [, commit, author, date, lineNumber, lineContent] = match;
-    
-    //             const blameInfo: BlameInfo = {
-    //                 lines: [lineNumber],
-    //                 commit: commit.replace('^', ''),
-    //                 author: author.trim(),
-    //                 date: this.formatDate(date),
-    //                 message: "",
-    //             };
-    //             blameInfoArray.push(blameInfo);
-    //         }
-    //     }
-    
-    //     return this.mergeBlameInfo(blameInfoArray);
-    // }
-
-    // private mergeBlameInfo(blameInfoArray: BlameInfo[]): BlameInfo[] {
-    //     const commitToBlameInfo = new Map<string, BlameInfo>();
-
-    //     for (const blameInfo of blameInfoArray) {
-    //         if (commitToBlameInfo.has(blameInfo.commit)) {
-    //             const existingInfo = commitToBlameInfo.get(blameInfo.commit)!;
-    //             existingInfo.lines.push(...blameInfo.lines);
-    //         } else {
-    //             commitToBlameInfo.set(blameInfo.commit, { ...blameInfo });
-    //         }
-    //     }
-
-    //     return Array.from(commitToBlameInfo.values()).map(info => ({
-    //         ...info,
-    //         lines: [this.formatLineNumbers(info.lines)]
-    //     }));
-    //
-    // private async addCommitMessagesToBlameInfo(filePath: string, blameInfoArray: BlameInfo[]): Promise<void> {
-    //     const repoPath = path.dirname(filePath);
-    //     const commitMessages = new Map<string, string>();
-
-    //     for (const blameInfo of blameInfoArray) {
-    //         if (!commitMessages.has(blameInfo.commit)) {
-    //             const command = `git show -s --format=%B ${blameInfo.commit}`;
-    //             commitMessages.set(blameInfo.commit, await this.executeCommand(command, repoPath));
-    //         }
-    //         blameInfo.message = commitMessages.get(blameInfo.commit)?.trim() || "";
-    //     }
-    // }
-    // }
 }
