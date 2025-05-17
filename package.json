@@ -2,7 +2,7 @@
   "name": "whosmyguy",
   "displayName": "Who's My Guy?",
   "description": "See comprehensive details about the git history of the selected lines in your editor.",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "publisher": "GobindpreetMakkar",
   "icon": "images/logo.png",
   "license": "MIT",
