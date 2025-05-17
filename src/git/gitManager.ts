@@ -1,7 +1,7 @@
 import * as cp from 'child_process';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { GitExtension, Commit, Repository } from './typings/git';
+import { GitExtension } from './typings/git';
 import { BlameInfo } from './BlameInfo';
 
 export class GitManager {
@@ -121,22 +121,5 @@ export class GitManager {
         }
 
         return ranges.join(', ');
-    }
-
-    private createHistoryItemFromCommit(commit: Commit): vscode.SourceControlHistoryItem {
-        return {
-            id: commit.hash,
-            parentIds: commit.parents,
-            message: commit.message,
-            displayId: commit.hash.substr(0, 7),
-            author: commit.authorName ? `${commit.authorName} <${commit.authorEmail}>` : undefined,
-            timestamp: commit.commitDate ? commit.commitDate.getTime() : undefined,
-            statistics: commit.shortStat ? {
-                files: commit.shortStat.files,
-                insertions: commit.shortStat.insertions,
-                deletions: commit.shortStat.deletions
-            } : undefined,
-            references: []
-        };
     }
 }

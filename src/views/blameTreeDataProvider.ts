@@ -55,39 +55,24 @@ export class BlameTreeDataProvider implements vscode.TreeDataProvider<BlameTreeI
         if (!element) {
             if (this.blameData.length === 0) {
                 return Promise.resolve([
-                    new BlameTreeItem(
-                        'Welcome',
-                        vscode.TreeItemCollapsibleState.None,
-                        undefined, undefined, undefined, undefined,
-                        'View and analyze git history for your selected code', undefined, true
-                    ),
-                    new BlameTreeItem(
-                        '1. Select code in the editor',
-                        vscode.TreeItemCollapsibleState.None
-                    ),
-                    new BlameTreeItem(
-                        '2. Right-click and select "Who\'s My Guy?"',
-                        vscode.TreeItemCollapsibleState.None
-                    ),
-                    new BlameTreeItem(
-                        '3. View commit history (last 6 months by default)',
-                        vscode.TreeItemCollapsibleState.None
-                    ),
-                    new BlameTreeItem(
-                        '4. Use the filter button to change date range',
-                        vscode.TreeItemCollapsibleState.None
-                    )
+                    BlameTreeItem.builder('Welcome', vscode.TreeItemCollapsibleState.None)
+                        .withTooltip('View and analyze git history for your selected code')
+                        .withIsHeader(true)
+                        .build(),
+                    BlameTreeItem.createSimple('1. Select code in the editor', vscode.TreeItemCollapsibleState.None),
+                    BlameTreeItem.createSimple('2. Right-click and select "Who\'s My Guy?"', vscode.TreeItemCollapsibleState.None),
+                    BlameTreeItem.createSimple('3. View commit history (last 6 months by default)', vscode.TreeItemCollapsibleState.None),
+                    BlameTreeItem.createSimple('4. Use the filter button to change date range', vscode.TreeItemCollapsibleState.None)
                 ]);
             }
             
             const filteredData = this.getFilteredData();
             if (filteredData.length === 0) {
-                return Promise.resolve([new BlameTreeItem(
-                    'No commits found in the selected date range',
-                    vscode.TreeItemCollapsibleState.None,
-                    undefined, undefined, undefined, undefined,
-                    'Try selecting a different date range or clear the filter to see all commits'
-                )]);
+                return Promise.resolve([
+                    BlameTreeItem.builder('No commits found in the selected date range', vscode.TreeItemCollapsibleState.None)
+                        .withTooltip('Try selecting a different date range or clear the filter to see all commits')
+                        .build()
+                ]);
             }
 
             return Promise.resolve(filteredData.map(info => {
@@ -95,51 +80,51 @@ export class BlameTreeDataProvider implements vscode.TreeDataProvider<BlameTreeI
                 const label = `${info.commit.substring(0, 7)} - ${lineInfo} ${info.message.split('\n')[0]}`;
                 const tooltip = `${info.author} • ${formatDate(info.date)}\nLines: ${info.lines.join(', ')}`;
                 
-                const item = new BlameTreeItem(
-                    label, 
-                    vscode.TreeItemCollapsibleState.Collapsed,
-                    info.commit, undefined, info.date, undefined, 
-                    tooltip, info.lines, false, this.filepath
-                );
-                item.iconPath = new vscode.ThemeIcon('git-commit');
+                const item = BlameTreeItem.builder(label, vscode.TreeItemCollapsibleState.Collapsed)
+                    .withCommit(info.commit)
+                    .withDate(info.date)
+                    .withTooltip(tooltip || '')
+                    .withLines(info.lines)
+                    .withFilepath(this.filepath || '')
+                    .withIcon(new vscode.ThemeIcon('git-commit'))
+                    .build();
                 return item;
             }));
         } else if (element.commit) {
             const commitInfo = this.blameData.find(info => info.commit === element.commit);
             if (!commitInfo) { return Promise.resolve([]); }
             
-            return Promise.resolve([
-                new BlameTreeItem(
-                    `Author: ${commitInfo.author}`,
-                    vscode.TreeItemCollapsibleState.None,
-                    undefined, commitInfo.authorEmail, undefined, 'whosmyguy.openEmail',
-                    `Click to email: ${commitInfo.authorEmail}`,
-                    undefined, false, this.filepath
-                ),
-                (() => {
-                    const item = new BlameTreeItem(
-                        `Commit: ${commitInfo.commit.substring(0, 7)}`,
-                        vscode.TreeItemCollapsibleState.None,
-                        commitInfo.commit, undefined, undefined, 'whosmyguy.openCommit',
-                        'Click to open commit details',
-                        undefined, false, this.filepath
-                    );
-                    item.iconPath = new vscode.ThemeIcon('go-to-file');
-                    item.description = 'View';
-                    return item;
-                })(),
-                new BlameTreeItem(
-                    `Date: ${formatDate(commitInfo.date)}`,
-                    vscode.TreeItemCollapsibleState.None,
-                    undefined, undefined, commitInfo.date
-                ),
-                new BlameTreeItem(
-                    `Lines: ${commitInfo.lines.join(', ')}`,
-                    vscode.TreeItemCollapsibleState.None,
-                    undefined, undefined, undefined, undefined, undefined,
-                    commitInfo.lines
-                )
-            ]);
+            const authorItem = BlameTreeItem.builder(`Author: ${commitInfo.author}`, vscode.TreeItemCollapsibleState.None)
+                .withEmail(commitInfo.authorEmail)
+                .withCommandId('whosmyguy.openEmail')
+                .withTooltip(`Click to email: ${commitInfo.authorEmail}`)
+                .withFilepath(this.filepath || '')
+                .build();
+
+            const commitItem = BlameTreeItem.builder(`Commit: ${commitInfo.commit.substring(0, 7)}`, vscode.TreeItemCollapsibleState.None)
+                .withCommit(commitInfo.commit)
+                .withCommandId('whosmyguy.openCommit')
+                .withTooltip('Click to open commit details')
+                .withFilepath(this.filepath || '')
+                .withIcon(new vscode.ThemeIcon('go-to-file'))
+                .withDescription('View')
+                .build();
+
+            const dateItem = BlameTreeItem.builder(
+                `Date: ${formatDate(commitInfo.date)}`,
+                vscode.TreeItemCollapsibleState.None
+            )
+            .withDate(commitInfo.date)
+            .build();
+            
+            const linesItem = BlameTreeItem.builder(
+                `Lines: ${commitInfo.lines.join(', ')}`,
+                vscode.TreeItemCollapsibleState.None
+            )
+            .withLines(commitInfo.lines)
+            .build();
+
+            return Promise.resolve([authorItem, commitItem, dateItem, linesItem]);
         }
         
         return Promise.resolve([]);
