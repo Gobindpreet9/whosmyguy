@@ -3,6 +3,7 @@ import { BlameInfo } from '../git/BlameInfo';
 import { GitManager } from '../git/gitManager';
 import { BlameTreeDataProvider } from './blameTreeDataProvider';
 import { BlameTreeItem } from './BlameTreeItem';
+import { DateFilterType, validateDateFormat } from '../utils/dateUtils';
 
 export class BlameView {
     private treeDataProvider: BlameTreeDataProvider;
@@ -28,15 +29,15 @@ export class BlameView {
             
             const selectedItem = items[0].label;
             if (selectedItem.includes('Last 6 months')) {
-                this.treeDataProvider.setDateFilter('last6Months');
+                this.treeDataProvider.setDateFilter(DateFilterType.LAST_6_MONTHS);
             } else if (selectedItem.includes('Today')) {
-                this.treeDataProvider.setDateFilter('today');
+                this.treeDataProvider.setDateFilter(DateFilterType.TODAY);
             } else if (selectedItem.includes('This week')) {
-                this.treeDataProvider.setDateFilter('thisWeek');
+                this.treeDataProvider.setDateFilter(DateFilterType.THIS_WEEK);
             } else if (selectedItem.includes('This month')) {
-                this.treeDataProvider.setDateFilter('thisMonth');
+                this.treeDataProvider.setDateFilter(DateFilterType.THIS_MONTH);
             } else if (selectedItem.includes('All time')) {
-                this.treeDataProvider.setDateFilter('allTime');
+                this.treeDataProvider.setDateFilter(DateFilterType.ALL_TIME);
             } else if (selectedItem.includes('Custom range')) {
                 this.showCustomDateRangePicker();
             }
@@ -71,7 +72,7 @@ export class BlameView {
                 vscode.commands.executeCommand('whosmyguy.findGuy');
             }),
             vscode.commands.registerCommand('whosmyguy.clearFilter', () => {
-                this.treeDataProvider.setDateFilter('allTime');
+                this.treeDataProvider.setDateFilter(DateFilterType.ALL_TIME);
             })
         );
     }
@@ -80,7 +81,7 @@ export class BlameView {
         const startDateString = await vscode.window.showInputBox({
             prompt: '(Step 1 of 2): Enter START date (YYYY-MM-DD)',
             placeHolder: 'e.g. 2023-01-01',
-            validateInput: this.validateDateFormat
+            validateInput: validateDateFormat
         });
         
         if (startDateString === undefined) { return; }
@@ -88,31 +89,16 @@ export class BlameView {
         let endDateString = await vscode.window.showInputBox({
             prompt: '(Step 2 of 2): Enter END date (YYYY-MM-DD). Default is today.',
             placeHolder: 'e.g. 2023-12-31',
-            validateInput: this.validateDateFormat
+            validateInput: validateDateFormat
         });
         
         if (endDateString === undefined) { endDateString = new Date().toISOString().split('T')[0]; }
         
-        this.treeDataProvider.setCustomDateRange(startDateString, endDateString);
+        if (startDateString && endDateString) {
+            this.treeDataProvider.setCustomDateRange(startDateString, endDateString);
+        }
     }
     
-    private validateDateFormat(value: string): string | undefined {
-        if (!value) { return undefined; }
-        
-        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-        if (!dateRegex.test(value)) {
-            return 'Please enter date in YYYY-MM-DD format';
-        }
-        
-        const date = new Date(value);
-        if (isNaN(date.getTime())) {
-            return 'Invalid date';
-        }
-        
-        return undefined;
-    }
-    
-
     public show(gitManager: GitManager, blameInfo: BlameInfo[], filepath: string): void {
         this.gitManager = gitManager;
         this.currentFilepath = filepath;

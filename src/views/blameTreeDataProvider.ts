@@ -1,85 +1,45 @@
 import * as vscode from 'vscode';
 import { BlameInfo } from '../git/BlameInfo';
 import { BlameTreeItem } from './BlameTreeItem';
+import { DateFilterType, DateRange, formatRelativeDate as formatDate, getDateRange } from '../utils/dateUtils';
 
 export class BlameTreeDataProvider implements vscode.TreeDataProvider<BlameTreeItem> {
     private _onDidChangeTreeData: vscode.EventEmitter<BlameTreeItem | undefined | null | void> = new vscode.EventEmitter<BlameTreeItem | undefined | null | void>();
     readonly onDidChangeTreeData: vscode.Event<BlameTreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
 
     private blameData: BlameInfo[] = [];
-    private startDate?: Date;
-    private endDate?: Date;
-    private currentDateFilter: string = 'last6Months'; // default filter
+    private dateRange: DateRange = {};
+    private currentDateFilter: DateFilterType = DateFilterType.LAST_6_MONTHS; // default filter
     private filepath: string = '';
     
     constructor() {}
 
     refresh(blameInfo?: BlameInfo[], startDate?: Date, endDate?: Date, filepath?: string): void {
         this.blameData = blameInfo || this.blameData;
-        this.startDate = startDate || this.startDate;
-        this.endDate = endDate || this.endDate;
+        this.dateRange = { startDate, endDate };
         this.filepath = filepath || this.filepath;
         this._onDidChangeTreeData.fire();
     }
 
-    setDateFilter(filter: string): void {
+    setDateFilter(filter: DateFilterType): void {
         this.currentDateFilter = filter;
-        
-        const now = new Date();
-        
-        switch(filter) {
-            case 'allTime':
-                this.startDate = undefined;
-                this.endDate = undefined;
-                break;
-            case 'today':
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                this.startDate = today;
-                this.endDate = now;
-                break;
-            case 'thisWeek':
-                const thisWeekStart = new Date();
-                thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
-                thisWeekStart.setHours(0, 0, 0, 0);
-                this.startDate = thisWeekStart;
-                this.endDate = now;
-                break;
-            case 'thisMonth':
-                const thisMonthStart = new Date();
-                thisMonthStart.setDate(1);
-                thisMonthStart.setHours(0, 0, 0, 0);
-                this.startDate = thisMonthStart;
-                this.endDate = now;
-                break;
-            case 'last6Months':
-                const sixMonthsAgo = new Date();
-                sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-                this.startDate = sixMonthsAgo;
-                this.endDate = now;
-                break;
-            case 'custom':
-                // Keep current custom dates
-                break;
-        }
-        
+        this.dateRange = getDateRange(filter);
         this._onDidChangeTreeData.fire();
     }
     
     setCustomDateRange(startDate: string, endDate: string): void {
-        this.currentDateFilter = 'custom';
-        this.startDate = new Date(startDate);
-        this.endDate = new Date(endDate);
+        this.currentDateFilter = DateFilterType.CUSTOM;
+        this.dateRange = getDateRange(DateFilterType.CUSTOM, startDate, endDate);
         this._onDidChangeTreeData.fire();
     }
 
     getFilteredData(): BlameInfo[] {
-        if (!this.startDate && !this.endDate) {
+        if (!this.dateRange.startDate && !this.dateRange.endDate) {
             return this.blameData;
         }
 
-        const start = this.startDate || new Date(0);
-        const end = this.endDate || new Date();
+        const start = this.dateRange.startDate || new Date(0);
+        const end = this.dateRange.endDate || new Date();
 
         return this.blameData.filter(info => {
             const commitDate = new Date(info.date);
@@ -133,7 +93,7 @@ export class BlameTreeDataProvider implements vscode.TreeDataProvider<BlameTreeI
             return Promise.resolve(filteredData.map(info => {
                 const lineInfo = info.lines.length > 0 ? `[Lines: ${info.lines.join(', ')}]` : '';
                 const label = `${info.commit.substring(0, 7)} - ${lineInfo} ${info.message.split('\n')[0]}`;
-                const tooltip = `${info.author} • ${this.formatDate(info.date)}\nLines: ${info.lines.join(', ')}`;
+                const tooltip = `${info.author} • ${formatDate(info.date)}\nLines: ${info.lines.join(', ')}`;
                 
                 const item = new BlameTreeItem(
                     label, 
@@ -169,7 +129,7 @@ export class BlameTreeDataProvider implements vscode.TreeDataProvider<BlameTreeI
                     return item;
                 })(),
                 new BlameTreeItem(
-                    `Date: ${this.formatDate(commitInfo.date)}`,
+                    `Date: ${formatDate(commitInfo.date)}`,
                     vscode.TreeItemCollapsibleState.None,
                     undefined, undefined, commitInfo.date
                 ),
@@ -185,29 +145,15 @@ export class BlameTreeDataProvider implements vscode.TreeDataProvider<BlameTreeI
         return Promise.resolve([]);
     }
 
-    private formatDate(date: Date): string {
-        const now = new Date();
-        const diffMinutes = Math.floor((now.getTime() - new Date(date).getTime()) / (1000 * 60));
-
-        if (diffMinutes < 60) {
-            return `${diffMinutes} minute(s) ago`;
-        } else if (diffMinutes < 1440) {
-            const hours = Math.floor(diffMinutes / 60);
-            return `${hours} hour(s) ago`;
-        } else {
-            return `${new Date(date).toLocaleDateString()}`;
-        }
-    }
-
     getCurrentDateFilter(): string {
         return this.currentDateFilter;
     }
     
     getStartDate(): Date | undefined {
-        return this.startDate;
+        return this.dateRange.startDate;
     }
-    
+
     getEndDate(): Date | undefined {
-        return this.endDate;
+        return this.dateRange.endDate;
     }
 }
