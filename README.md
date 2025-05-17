@@ -6,7 +6,7 @@ Available at [VS Code Marketplace](https://marketplace.visualstudio.com/items?it
 
 "Who's My Guy" is a powerful Visual Studio Code extension that enhances your Git history experience. It provides a more comprehensive view of code authorship by collecting and combining Git history for each line, going beyond what a standard Git blame would offer.
 
-<img src="https://github.com/user-attachments/assets/497908a4-86b4-4457-b891-44ca11cb9938" alt="2 Info panel opens" width="600">
+<img src="images/1.Welcome.png" alt="Welcome Message" width="500">
 
 ## Features
 
@@ -20,9 +20,13 @@ Available at [VS Code Marketplace](https://marketplace.visualstudio.com/items?it
 1. Select a piece of code in your editor
 2. Right-click to open the context menu
 3. Choose the "Who's My Guy" command
-4. An information panel will open on the right, displaying the enhanced Git history for the selected code
+4. An information panel will open with all the details
 
-<img src="https://github.com/user-attachments/assets/5ec93640-adee-4b8c-bdc6-cb0a0f2a29df" alt="1 Select code to see the option" width="400">
+<img src="images/2.Option.png" alt="Select Code" height="300">
+
+## Example Results
+
+<img src="images/3.Results.png" alt="Results" width="500">
 
 ## Known Issues
 
@@ -34,4 +38,4 @@ If you encounter any problems or have any questions, please open an issue on our
 
 ---
 
-Happy coding, and may you always know who your guy is! 👨‍💻👩‍💻
+Happy coding, and may you always know who your guy/gal is! 👨‍💻👩‍💻
