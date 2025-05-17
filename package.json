@@ -4,7 +4,7 @@
   "description": "See comprehensive details about the git history of the selected lines in your editor.",
   "version": "1.0.1",
   "publisher": "GobindpreetMakkar",
-  "icon": "images/icon.png",
+  "icon": "images/logo.png",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -23,10 +23,45 @@
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "whosmyguyExplorer",
+          "title": "Your Line-By-Line History",
+          "icon": "images/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "whosmyguyExplorer": [
+        {
+          "id": "whosmyguyView",
+          "name": "Your Line-By-Line History",
+          "icon": "images/icon.svg",
+          "contextualTitle": "Who's My Guy?"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "whosmyguy.findGuy",
-        "title": "Who's My Guy?"
+        "title": "Who's My Guy?",
+        "icon": "$(person)"
+      },
+      {
+        "command": "whosmyguy.refreshBlameInfo",
+        "title": "Refresh Git History",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "whosmyguy.changeFilter",
+        "title": "Change Date Filter",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "whosmyguy.clearFilter",
+        "title": "Clear Date Filter",
+        "icon": "$(clear-all)"
       }
     ],
     "menus": {
@@ -35,6 +70,23 @@
           "when": "editorTextFocus && !editorReadonly",
           "command": "whosmyguy.findGuy",
           "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "whosmyguy.refreshBlameInfo",
+          "when": "view == whosmyguyView",
+          "group": "navigation"
+        },
+        {
+          "command": "whosmyguy.changeFilter",
+          "when": "view == whosmyguyView",
+          "group": "navigation"
+        },
+        {
+          "command": "whosmyguy.clearFilter",
+          "when": "view == whosmyguyView",
+          "group": "navigation@2"
         }
       ]
     }
