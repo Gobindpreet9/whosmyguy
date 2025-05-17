@@ -28,11 +28,21 @@ Available at [VS Code Marketplace](https://marketplace.visualstudio.com/items?it
 
 <img src="images/3.Results.png" alt="Results" width="500">
 
-## Known Issues
+### Switching the Context Menu Title
+
+You can now choose your preferred title for the context menu action:
+
+1.  Open the **Command Palette** (usually `Ctrl+Shift+P` or `Cmd+Shift+P`).
+2.  Search for and run the command: `Switch between 'Who's My Guy/Gal' Context Menu Title`.
+3.  An information message will confirm the change.
+4.  The next time you right-click in the editor, the new title will appear in the context menu.
+    Your preference is saved and will be remembered across VS Code sessions.
+
+### Known Issues
 
 Please report any issues you encounter on my GitHub repository.
 
-## Support
+### Support
 
 If you encounter any problems or have any questions, please open an issue on our GitHub repository or shoot me a message.
 

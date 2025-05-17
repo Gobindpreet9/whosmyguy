@@ -49,6 +49,16 @@
         "icon": "$(person)"
       },
       {
+        "command": "whosmyguy.findGal",
+        "title": "Who's My Gal?",
+        "icon": "$(person)"
+      },
+      {
+        "command": "whosmyguy.toggleTitlePreference",
+        "title": "Switch between 'Who's My Guy/Gal' Context Menu Title",
+        "icon": "$(settings-gear)"
+      },
+      {
         "command": "whosmyguy.refreshBlameInfo",
         "title": "Refresh Git History",
         "icon": "$(refresh)"
@@ -67,9 +77,16 @@
     "menus": {
       "editor/context": [
         {
-          "when": "editorTextFocus && !editorReadonly",
+          "when": "editorTextFocus && !editorReadonly && (!whosmyguy.titlePreference || whosmyguy.titlePreference == 'guy')",
           "command": "whosmyguy.findGuy",
-          "group": "navigation"
+          "group": "navigation",
+          "title": "Who's My Guy?"
+        },
+        {
+          "when": "editorTextFocus && !editorReadonly && whosmyguy.titlePreference == 'gal'",
+          "command": "whosmyguy.findGal",
+          "group": "navigation",
+          "title": "Who's My Gal?"
         }
       ],
       "view/title": [
