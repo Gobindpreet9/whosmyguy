@@ -1,10 +1,10 @@
-# Who's My Guy
+# Who's My Guy/Gal?
 
 Available at [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=GobindpreetMakkar.whosmyguy)
 
 ## Overview
 
-"Who's My Guy" is a powerful Visual Studio Code extension that enhances your Git history experience. It provides a more comprehensive view of code authorship by collecting and combining Git history for each line, going beyond what a standard Git blame would offer.
+"Who's My Guy/Gal?" is a powerful Visual Studio Code extension that enhances your Git history experience. It provides a more comprehensive view of code authorship by collecting and combining Git history for each line, going beyond what a standard Git blame would offer.
 
 <img src="images/1.Welcome.png" alt="Welcome Message" width="500">
 
@@ -19,7 +19,7 @@ Available at [VS Code Marketplace](https://marketplace.visualstudio.com/items?it
 
 1. Select a piece of code in your editor
 2. Right-click to open the context menu
-3. Choose the "Who's My Guy" command
+3. Choose the "Who's My Guy/Gal?" command
 4. An information panel will open with all the details
 
 <img src="images/2.Option.png" alt="Select Code" height="300">
