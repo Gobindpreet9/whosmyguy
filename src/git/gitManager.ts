@@ -5,27 +5,62 @@ import { GitExtension } from './typings/git';
 import { BlameInfo } from './BlameInfo';
 
 export class GitManager {
-    async getGitBlameInfoForLineRange(filePath: string, startLine: number, endLine: number): Promise<BlameInfo[]> {
+    async getGitBlameInfoForLineRange(filePath: string, startLine: number, endLine: number, lineCount: number): Promise<BlameInfo[]> {
         const commitToBlameInfo = new Map<string, BlameInfo>();
+        
+        const hasUncommitted = await this.hasUncommittedChanges(filePath);
+        const committedLineCount = hasUncommitted ? await this.getCommittedLineCount(filePath) : lineCount;
+        
+        const uncommittedLines: number[] = [];
 
-        // add 1 to line number because git line count starts at 1
         for (let lineNumber = startLine + 1; lineNumber <= endLine + 1; lineNumber++) {
-            const gitLogOutput = await this.executeGitLog(filePath, lineNumber);
-            const blameInfoForLine = this.parseGitLogOutput(gitLogOutput, lineNumber);
-            blameInfoForLine.forEach(blameInfo => {
-                if (commitToBlameInfo.has(blameInfo.commit)) {
-                    commitToBlameInfo.get(blameInfo.commit)!.lines.push(lineNumber.toString());
-                } else {
-                    commitToBlameInfo.set(blameInfo.commit, blameInfo);
-                }
-            });
+            if (lineNumber > lineCount) {
+                break;
+            }
+            
+            if (hasUncommitted && lineNumber > committedLineCount) {
+                uncommittedLines.push(lineNumber);
+                continue;
+            }
+            
+            try {
+                const gitLogOutput = await this.executeGitLog(filePath, lineNumber);
+                const blameInfoForLine = this.parseGitLogOutput(gitLogOutput, lineNumber);
+                blameInfoForLine.forEach(blameInfo => {
+                    if (commitToBlameInfo.has(blameInfo.commit)) {
+                        commitToBlameInfo.get(blameInfo.commit)!.lines.push(lineNumber.toString());
+                    } else {
+                        commitToBlameInfo.set(blameInfo.commit, blameInfo);
+                    }
+                });
+            } catch (error) {
+                console.warn(`Could not get blame info for line ${lineNumber}: ${error}`);
+                uncommittedLines.push(lineNumber);
+            }
+        }
+        
+        if (uncommittedLines.length > 0) {
+            const uncommittedInfo: BlameInfo = {
+                lines: uncommittedLines.map(line => line.toString()),
+                commit: 'uncommitted',
+                author: 'You',
+                authorEmail: 'local',
+                date: new Date(),
+                message: 'Uncommitted changes'
+            };
+            commitToBlameInfo.set('uncommitted', uncommittedInfo);
         }
 
         return Array.from(commitToBlameInfo.values()).map(info => ({
             ...info,
             lines: [this.formatLineNumbers(info.lines)]
         }))
-        .sort((a, b) => b.date.getTime() - a.date.getTime());    
+        .sort((a, b) => {
+            // Put uncommitted changes at the top
+            if (a.commit === 'uncommitted') { return -1; }
+            if (b.commit === 'uncommitted') { return 1; }
+            return b.date.getTime() - a.date.getTime();
+        });    
     }
 
     async openCommitInGitExtension(commitId: string, filePath: string) {
@@ -53,10 +88,10 @@ export class GitManager {
     }
 
     private async executeGitLog(filePath: string, lineNumber: number): Promise<string> {
-        const osFilePath = this.convertToOsPath(filePath);
-        const repoPath = path.dirname(filePath);
-        const command = `git --no-pager log -L ${lineNumber},${lineNumber}:"${osFilePath}" --format="Commit: %H%nAuthor: %an%nAuthor Email: %ae%nDate: %ad%nMessage: %s%n"`;
-        return await this.executeCommand(command, repoPath);
+        const repoRoot = await this.getGitRepoRoot(filePath);
+        const relativePath = path.relative(repoRoot, filePath).replace(/\\/g, '/');
+        const command = `git --no-pager log -L ${lineNumber},${lineNumber}:"${relativePath}" --format="Commit: %H%nAuthor: %an%nAuthor Email: %ae%nDate: %ad%nMessage: %s%n"`;
+        return await this.executeCommand(command, repoRoot);
     }
 
     private parseCommitInfo(commitInfo: string, lineNumber: number): BlameInfo | null {
@@ -92,6 +127,46 @@ export class GitManager {
                 }
             });
         });
+    }
+
+    private async getGitRepoRoot(filePath: string): Promise<string> {
+        try {
+            const command = 'git rev-parse --show-toplevel';
+            const output = await this.executeCommand(command, path.dirname(filePath));
+            return output.trim().replace(/\//g, path.sep);
+        } catch (error) {
+            console.error('Error finding git repo root:', error);
+            return path.dirname(filePath);
+        }
+    }
+
+    private async hasUncommittedChanges(filePath: string): Promise<boolean> {
+        try {
+            const repoRoot = await this.getGitRepoRoot(filePath);
+            const relativePath = path.relative(repoRoot, filePath).replace(/\\/g, '/');
+            const command = `git status --porcelain "${relativePath}"`;
+            const output = await this.executeCommand(command, repoRoot);
+            return output.trim().length > 0;
+        } catch (error) {
+            console.error('Error checking uncommitted changes:', error);
+            return false;
+        }
+    }
+
+    private async getCommittedLineCount(filePath: string): Promise<number> {
+        try {
+            const repoRoot = await this.getGitRepoRoot(filePath);
+            const relativePath = path.relative(repoRoot, filePath).replace(/\\/g, '/');
+            const command = `git show HEAD:"${relativePath}"`;
+            const output = await this.executeCommand(command, repoRoot);
+            // Count lines manually to avoid platform-specific commands
+            const lines = output.split('\n');
+            // Remove empty last line if it exists (common with git show)
+            return lines.length > 0 && lines[lines.length - 1] === '' ? lines.length - 1 : lines.length;
+        } catch (error) {
+            console.error('Error getting committed line count:', error);
+            return 0;
+        }
     }
 
     private convertToOsPath(windowsPath: string): string {

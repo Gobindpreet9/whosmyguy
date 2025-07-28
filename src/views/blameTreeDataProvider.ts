@@ -77,38 +77,69 @@ export class BlameTreeDataProvider implements vscode.TreeDataProvider<BlameTreeI
 
             return Promise.resolve(filteredData.map(info => {
                 const lineInfo = info.lines.length > 0 ? `[Lines: ${info.lines.join(', ')}]` : '';
-                const label = `${info.commit.substring(0, 7)} - ${lineInfo} ${info.message.split('\n')[0]}`;
-                const tooltip = `${info.author} • ${formatDate(info.date)}\nLines: ${info.lines.join(', ')}`;
                 
-                const item = BlameTreeItem.builder(label, vscode.TreeItemCollapsibleState.Collapsed)
-                    .withCommit(info.commit)
-                    .withDate(info.date)
-                    .withTooltip(tooltip || '')
-                    .withLines(info.lines)
-                    .withFilepath(this.filepath || '')
-                    .withIcon(new vscode.ThemeIcon('git-commit'))
-                    .build();
-                return item;
+                // Handle uncommitted changes differently
+                if (info.commit === 'uncommitted') {
+                    const label = `Uncommitted - ${lineInfo} ${info.message}`;
+                    const tooltip = `${info.author} • ${formatDate(info.date)}\nLines: ${info.lines.join(', ')}\n\nThese are your local changes that haven't been committed yet.`;
+                    
+                    const item = BlameTreeItem.builder(label, vscode.TreeItemCollapsibleState.Collapsed)
+                        .withCommit(info.commit)
+                        .withDate(info.date)
+                        .withTooltip(tooltip || '')
+                        .withLines(info.lines)
+                        .withFilepath(this.filepath || '')
+                        .withIcon(new vscode.ThemeIcon('edit', new vscode.ThemeColor('gitDecoration.modifiedResourceForeground')))
+                        .build();
+                    return item;
+                } else {
+                    const label = `${info.commit.substring(0, 7)} - ${lineInfo} ${info.message.split('\n')[0]}`;
+                    const tooltip = `${info.author} • ${formatDate(info.date)}\nLines: ${info.lines.join(', ')}`;
+                    
+                    const item = BlameTreeItem.builder(label, vscode.TreeItemCollapsibleState.Collapsed)
+                        .withCommit(info.commit)
+                        .withDate(info.date)
+                        .withTooltip(tooltip || '')
+                        .withLines(info.lines)
+                        .withFilepath(this.filepath || '')
+                        .withIcon(new vscode.ThemeIcon('git-commit'))
+                        .build();
+                    return item;
+                }
             }));
         } else if (element.commit) {
             const commitInfo = this.blameData.find(info => info.commit === element.commit);
             if (!commitInfo) { return Promise.resolve([]); }
             
-            const authorItem = BlameTreeItem.builder(`Author: ${commitInfo.author}`, vscode.TreeItemCollapsibleState.None)
+            // Handle uncommitted changes differently - no clickable commands
+            const isUncommitted = commitInfo.commit === 'uncommitted';
+            
+            let authorBuilder = BlameTreeItem.builder(`Author: ${commitInfo.author}`, vscode.TreeItemCollapsibleState.None)
                 .withEmail(commitInfo.authorEmail)
-                .withCommandId('whosmyguy.openEmail')
-                .withTooltip(`Click to email: ${commitInfo.authorEmail}`)
-                .withFilepath(this.filepath || '')
-                .build();
+                .withTooltip(isUncommitted ? 'Local changes by you' : `Click to email: ${commitInfo.authorEmail}`)
+                .withFilepath(this.filepath || '');
+            
+            if (!isUncommitted) {
+                authorBuilder = authorBuilder.withCommandId('whosmyguy.openEmail');
+            }
+            
+            const authorItem = authorBuilder.build();
 
-            const commitItem = BlameTreeItem.builder(`Commit: ${commitInfo.commit.substring(0, 7)}`, vscode.TreeItemCollapsibleState.None)
+            let commitBuilder = BlameTreeItem.builder(
+                isUncommitted ? 'Status: Uncommitted' : `Commit: ${commitInfo.commit.substring(0, 7)}`, 
+                vscode.TreeItemCollapsibleState.None
+            )
                 .withCommit(commitInfo.commit)
-                .withCommandId('whosmyguy.openCommit')
-                .withTooltip('Click to open commit details')
+                .withTooltip(isUncommitted ? 'These changes have not been committed yet' : 'Click to open commit details')
                 .withFilepath(this.filepath || '')
-                .withIcon(new vscode.ThemeIcon('go-to-file'))
-                .withDescription('View')
-                .build();
+                .withIcon(isUncommitted ? new vscode.ThemeIcon('edit') : new vscode.ThemeIcon('go-to-file'))
+                .withDescription(isUncommitted ? 'Local' : 'View');
+            
+            if (!isUncommitted) {
+                commitBuilder = commitBuilder.withCommandId('whosmyguy.openCommit');
+            }
+            
+            const commitItem = commitBuilder.build();
 
             const dateItem = BlameTreeItem.builder(
                 `Date: ${formatDate(commitInfo.date)}`,

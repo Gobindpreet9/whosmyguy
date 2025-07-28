@@ -23,6 +23,7 @@ export function activate(context: vscode.ExtensionContext) {
         try {
             const startLine = selection.start.line;
             const endLine = selection.end.line;
+            const lineCount = document.lineCount;
 
             const filePath = uri.fsPath;
             const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
@@ -38,12 +39,12 @@ export function activate(context: vscode.ExtensionContext) {
             }, async (progress) => {
                 progress.report({ message: "Analyzing git history..." });
                 
-                const blameInfo = await gitManager.getGitBlameInfoForLineRange(filePath, startLine, endLine);
+                const blameInfo = await gitManager.getGitBlameInfoForLineRange(filePath, startLine, endLine, lineCount);
                 
                 if (blameInfo.length > 0) {
                     blameView.show(gitManager, blameInfo, filePath);
                 } else {
-                    vscode.window.showInformationMessage("No git history found for the selected lines (lines might be uncommitted or file is new).");
+                    vscode.window.showInformationMessage("No git history found for the selected lines. This could mean the lines are uncommitted changes, the file is new, or not tracked by git.");
                 }
             });
         } catch (error) {

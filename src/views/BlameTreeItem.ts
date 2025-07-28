@@ -22,13 +22,13 @@ export class BlameTreeItem extends vscode.TreeItem {
             this.tooltip = tooltip;
         }
         
-        if (this.commandId && this.commit) {
+        if (this.commandId && this.commit && this.commit !== 'uncommitted') {
             this.command = {
                 command: this.commandId,
                 title: '',
                 arguments: [this.commit, this.filepath]
             };
-        } else if (this.commandId && this.email) {
+        } else if (this.commandId && this.email && this.email !== 'local') {
             this.command = {
                 command: this.commandId,
                 title: '',
@@ -38,6 +38,10 @@ export class BlameTreeItem extends vscode.TreeItem {
     }
 
     private getIconForType(): any {
+        if (this.commit === 'uncommitted') {
+            return new vscode.ThemeIcon('edit', new vscode.ThemeColor('gitDecoration.modifiedResourceForeground'));
+        }
+        
         if (this.commandId === 'whosmyguy.openCommit') {
             return new vscode.ThemeIcon('git-commit');
         }
